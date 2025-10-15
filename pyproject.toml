@@ -1,0 +1,12 @@
+[project]
+name = "kasm-extend"
+version = "0.1.0"
+description = "Script to extend Kasm sessions"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "kasmapi",
+]
+
+[tool.uv.sources]
+kasmapi = { path = "../kasmapi" }
