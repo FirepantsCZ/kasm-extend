@@ -1,3 +1,4 @@
+from datetime import datetime, tzinfo, timedelta, UTC
 from os import getenv
 from zoneinfo import ZoneInfo
 
@@ -6,7 +7,7 @@ from dotenv import load_dotenv
 from kasmapi.exceptions import UsageQuotaReachedError
 from kasmapi.kasm import Kasm
 
-TIMEZONE = ZoneInfo("Europe/Prague")
+#TIMEZONE = ZoneInfo("Europe/Prague")
 DEFAULT_HOURS = 6
 
 load_dotenv()
@@ -36,16 +37,21 @@ def main() -> None:
         # TODO: Find out if expiration_date is actually updated on keepalive()
         #   or if there is just some problem with TZ's
         #   print(datetime.strptime(s.expiration_date, "%Y-%m-%d %H:%M:%S.%f"))
+        exp_date = datetime.strptime(s.expiration_date, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC).astimezone()
+        exp_eta = int((exp_date - datetime.now().astimezone()).total_seconds())
 
+        start_date_str = datetime.strptime(s.start_date, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC).astimezone().strftime("%Y-%m-%d %H:%M:%S")
+        exp_date_str = exp_date.strftime("%Y-%m-%d %H:%M:%S")
+        exp_eta_str = f"{exp_eta // 3600:02}:{exp_eta % 3600 // 60:02}:{exp_eta % 60:02}"
         print(
-            f"[{i}] {s.start_date} - {s.image.friendly_name} (state: {s.operational_status})",
+            f"[{i}] {start_date_str} - {s.image.friendly_name} (state: {s.operational_status}, expiration: {exp_date_str} ({exp_eta_str} remaining))",
         )
 
     choice = input("\nSelect session to extend (number)[1]: ")
     session = sessions[int(choice) - 1 if choice else 0]
 
-    # Get the user of chosen session
-    user_group = kasm.get_user(session.user_id.hex, session.username).groups[0]
+    # Get the user of the chosen session
+    user_group = next(session.user.groups)
 
     # Fetch default session expiration time
     keepalive_setting = user_group.get_setting("keepalive_expiration")
@@ -57,10 +63,15 @@ def main() -> None:
     old_keepalive = keepalive_setting.value
 
     # Ask how many hours to extend
-    extra_hours = input(f"New expiration time (in hours)[{DEFAULT_HOURS}]: ")
+    while extra_hours := input(f"\nNew expiration time (in hours)[{DEFAULT_HOURS}]: "):
+        try:
+            extra_hours = float(extra_hours)
+            break
+        except ValueError:
+            print("ERROR: Invalid input. Please enter a number.")
 
     keepalive_setting.set_value(
-        (int(extra_hours) if extra_hours else DEFAULT_HOURS) * 60 * 60,
+        int((extra_hours if extra_hours else DEFAULT_HOURS) * 60 * 60),
     )
 
     # Reset keepalive for session
