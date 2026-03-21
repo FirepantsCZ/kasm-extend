@@ -1,13 +1,11 @@
-from datetime import datetime, tzinfo, timedelta, UTC
+from datetime import datetime, UTC
 from os import getenv
-from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
 from kasmapi.exceptions import UsageQuotaReachedError
 from kasmapi.kasm import Kasm
 
-#TIMEZONE = ZoneInfo("Europe/Prague")
 DEFAULT_HOURS = 6
 
 load_dotenv()
@@ -34,9 +32,6 @@ def main() -> None:
     # Display list
     print("\nAvailable sessions:")
     for i, s in enumerate(sessions, 1):
-        # TODO: Find out if expiration_date is actually updated on keepalive()
-        #   or if there is just some problem with TZ's
-        #   print(datetime.strptime(s.expiration_date, "%Y-%m-%d %H:%M:%S.%f"))
         exp_date = datetime.strptime(s.expiration_date, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC).astimezone()
         exp_eta = int((exp_date - datetime.now().astimezone()).total_seconds())
 
